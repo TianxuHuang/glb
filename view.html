@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>218 & 219 GLB 预览</title>
+  <script type="module" src="model-viewer.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 12px 20px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
+    .hint { margin-left: auto; font-size: 13px; color: #64748b; }
+    .switcher {
+      display: flex;
+      gap: 4px;
+      padding: 3px;
+      background: #111318;
+      border: 1px solid #293244;
+      border-radius: 8px;
+    }
+    .switcher button {
+      padding: 6px 18px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: #94a3b8;
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .switcher button:hover { color: #e2e8f0; }
+    .switcher button.active { background: #2563eb; color: #fff; }
+    .switcher button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+    .comparison {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+    .pane {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .pane + .pane { border-left: 1px solid #1e293b; }
+    .pane-header {
+      padding: 10px 16px;
+      background: #1a1d27;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .pane-header h2 { font-size: 13px; font-weight: 600; }
+    .pane-header span { color: #64748b; }
+    .pane-header a { color: #60a5fa; text-decoration: none; }
+    .pane-header a:hover { text-decoration: underline; }
+    .image-stage {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      background: #111318;
+    }
+    .image-stage img {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+    }
+    model-viewer {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      background: #111318;
+    }
+    @media (max-width: 760px) {
+      body { height: auto; min-height: 100vh; }
+      header { gap: 12px; }
+      .hint { display: none; }
+      .switcher { margin-left: auto; }
+      .comparison { flex: none; flex-direction: column; }
+      .pane { flex: none; height: 60vh; min-height: 360px; }
+      .pane + .pane { border-left: none; border-top: 1px solid #1e293b; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>原图与 GLB 预览</h1>
+  <div class="switcher" aria-label="选择模型">
+    <button type="button" class="active" data-target="218" aria-pressed="true">218</button>
+    <button type="button" data-target="219" aria-pressed="false">219</button>
+  </div>
+  <span class="hint">拖拽旋转 · 滚轮缩放 · 双击重置</span>
+</header>
+
+<main class="comparison">
+  <section class="pane" aria-labelledby="image-title">
+    <div class="pane-header">
+      <h2 id="image-title">原图</h2>
+      <span id="image-name">218.jpg</span>
+    </div>
+    <div class="image-stage">
+      <img id="original-image" src="218.jpg" alt="218 原图" />
+    </div>
+  </section>
+
+  <section class="pane" aria-labelledby="model-title">
+    <div class="pane-header">
+      <h2 id="model-title">GLB 浏览</h2>
+      <a id="download-link" href="218.glb" download>下载 218.glb</a>
+    </div>
+    <model-viewer
+      id="glb-viewer"
+      src="218.glb"
+      alt="218 GLB 模型"
+      camera-controls
+      auto-rotate
+      auto-rotate-delay="2000"
+      shadow-intensity="1"
+      interaction-prompt="auto">
+    </model-viewer>
+  </section>
+</main>
+
+<script>
+  const assets = {
+    218: { image: "218.jpg", model: "218.glb" },
+    219: { image: "219.png", model: "219.glb" }
+  };
+
+  const image = document.getElementById("original-image");
+  const imageName = document.getElementById("image-name");
+  const viewer = document.getElementById("glb-viewer");
+  const downloadLink = document.getElementById("download-link");
+  const buttons = document.querySelectorAll("[data-target]");
+
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = button.dataset.target;
+      const asset = assets[id];
+
+      image.src = asset.image;
+      image.alt = `${id} 原图`;
+      imageName.textContent = asset.image;
+      viewer.setAttribute("src", asset.model);
+      viewer.setAttribute("alt", `${id} GLB 模型`);
+      downloadLink.href = asset.model;
+      downloadLink.textContent = `下载 ${asset.model}`;
+
+      buttons.forEach((item) => {
+        const isActive = item === button;
+        item.classList.toggle("active", isActive);
+        item.setAttribute("aria-pressed", String(isActive));
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
