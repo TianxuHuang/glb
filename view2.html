@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>218 & 219 GLB 预览（Three.js）</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/"
+      }
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 12px 20px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
+    .hint { margin-left: auto; font-size: 13px; color: #64748b; }
+    .switcher {
+      display: flex;
+      gap: 4px;
+      padding: 3px;
+      background: #111318;
+      border: 1px solid #293244;
+      border-radius: 8px;
+    }
+    .switcher button {
+      padding: 6px 18px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: #94a3b8;
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .switcher button:hover { color: #e2e8f0; }
+    .switcher button.active { background: #2563eb; color: #fff; }
+    .switcher button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+    .comparison {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+    .pane {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .pane + .pane { border-left: 1px solid #1e293b; }
+    .pane-header {
+      padding: 10px 16px;
+      background: #1a1d27;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .pane-header h2 { font-size: 13px; font-weight: 600; }
+    .pane-header span { color: #64748b; }
+    .pane-header a { color: #60a5fa; text-decoration: none; }
+    .pane-header a:hover { text-decoration: underline; }
+    .image-stage {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      background: #111318;
+    }
+    .image-stage img {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+    }
+    .model-stage {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      background: #111318;
+    }
+    .model-stage canvas { display: block; }
+    .model-status {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #64748b;
+      pointer-events: none;
+    }
+    .model-status.error { color: #f87171; }
+    .model-status[hidden] { display: none; }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      padding: 8px 16px;
+      background: #151824;
+      border-bottom: 1px solid #1e293b;
+      font-size: 12px;
+      color: #94a3b8;
+      flex-shrink: 0;
+    }
+    .toolbar label { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+    .toolbar input { accent-color: #2563eb; cursor: pointer; }
+    .toolbar select {
+      margin-left: auto;
+      padding: 4px 8px;
+      background: #111318;
+      color: #cbd5e1;
+      border: 1px solid #293244;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+    .toolbar .toolbar-label { color: #64748b; }
+    .toolbar button {
+      padding: 3px 10px;
+      background: #111318;
+      color: #cbd5e1;
+      border: 1px solid #293244;
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .toolbar button:hover { border-color: #60a5fa; color: #fff; }
+    .model-info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 12px;
+      background: rgba(10, 12, 18, 0.72);
+      border: 1px solid #293244;
+      border-radius: 6px;
+      font-size: 11px;
+      line-height: 1.8;
+      color: #94a3b8;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .model-info[hidden] { display: none; }
+    .anim-bar {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: rgba(10, 12, 18, 0.72);
+      border: 1px solid #293244;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #94a3b8;
+      z-index: 2;
+    }
+    .anim-bar[hidden] { display: none; }
+    .anim-bar button {
+      padding: 3px 12px;
+      background: #2563eb;
+      color: #fff;
+      border: 0;
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .anim-bar select {
+      max-width: 140px;
+      padding: 3px 6px;
+      background: #111318;
+      color: #cbd5e1;
+      border: 1px solid #293244;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+    .anim-bar input[type="range"] { flex: 1; accent-color: #2563eb; cursor: pointer; }
+    .anim-bar span { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    @media (max-width: 760px) {
+      body { height: auto; min-height: 100vh; }
+      header { gap: 12px; }
+      .hint { display: none; }
+      .switcher { margin-left: auto; }
+      .comparison { flex: none; flex-direction: column; }
+      .pane { flex: none; height: 60vh; min-height: 360px; }
+      .pane + .pane { border-left: none; border-top: 1px solid #1e293b; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>原图与 GLB 预览</h1>
+  <div class="switcher" aria-label="选择模型">
+    <button type="button" class="active" data-target="218" aria-pressed="true">218</button>
+    <button type="button" data-target="219" aria-pressed="false">219</button>
+  </div>
+  <span class="hint">拖拽旋转 · 滚轮缩放 · 双击重置</span>
+</header>
+
+<main class="comparison">
+  <section class="pane" aria-labelledby="image-title">
+    <div class="pane-header">
+      <h2 id="image-title">原图</h2>
+      <span id="image-name">218.jpg</span>
+    </div>
+    <div class="image-stage">
+      <img id="original-image" src="218.jpg" alt="218 原图" />
+    </div>
+  </section>
+
+  <section class="pane" aria-labelledby="model-title">
+    <div class="pane-header">
+      <h2 id="model-title">GLB 浏览（Three.js）</h2>
+      <a id="download-link" href="218.glb" download>下载 218.glb</a>
+    </div>
+    <div class="toolbar">
+      <label><input type="checkbox" id="opt-env" checked /> 环境反射</label>
+      <label><input type="checkbox" id="opt-shadow" checked /> 阴影</label>
+      <label><input type="checkbox" id="opt-wire" /> 线框</label>
+      <label><input type="checkbox" id="opt-normal" /> 法线</label>
+      <select id="opt-bg" aria-label="背景">
+        <option value="dark">深色背景</option>
+        <option value="light">浅色背景</option>
+        <option value="gradient">渐变背景</option>
+        <option value="grid">网格地面</option>
+        <option value="transparent">透明背景</option>
+      </select>
+    </div>
+    <div class="toolbar">
+      <span class="toolbar-label">视角</span>
+      <button type="button" data-view="persp">45°</button>
+      <button type="button" data-view="front">正面</button>
+      <button type="button" data-view="side">侧面</button>
+      <button type="button" data-view="top">顶部</button>
+      <label><input type="checkbox" id="opt-bbox" /> 包围盒</label>
+      <label><input type="checkbox" id="opt-axes" /> 坐标轴</label>
+    </div>
+    <div class="model-stage" id="model-stage">
+      <div class="model-status" id="model-status">模型加载中…</div>
+      <div class="model-info" id="model-info" hidden></div>
+      <div class="anim-bar" id="anim-bar" hidden>
+        <button type="button" id="anim-play">暂停</button>
+        <select id="anim-clips" aria-label="选择动画"></select>
+        <input type="range" id="anim-progress" min="0" max="1000" value="0" />
+        <span id="anim-time"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+  import * as THREE from "three";
+  import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+  const assets = {
+    218: { image: "218.jpg", model: "218.glb" },
+    219: { image: "219.png", model: "219.glb" }
+  };
+
+  const image = document.getElementById("original-image");
+  const imageName = document.getElementById("image-name");
+  const downloadLink = document.getElementById("download-link");
+  const buttons = document.querySelectorAll("[data-target]");
+  const stage = document.getElementById("model-stage");
+  const status = document.getElementById("model-status");
+  const envToggle = document.getElementById("opt-env");
+  const shadowToggle = document.getElementById("opt-shadow");
+  const wireToggle = document.getElementById("opt-wire");
+  const normalToggle = document.getElementById("opt-normal");
+  const bgSelect = document.getElementById("opt-bg");
+  const bboxToggle = document.getElementById("opt-bbox");
+  const axesToggle = document.getElementById("opt-axes");
+  const viewButtons = document.querySelectorAll("[data-view]");
+  const infoPanel = document.getElementById("model-info");
+  const animBar = document.getElementById("anim-bar");
+  const animPlay = document.getElementById("anim-play");
+  const clipSelect = document.getElementById("anim-clips");
+  const animProgress = document.getElementById("anim-progress");
+  const animTime = document.getElementById("anim-time");
+
+  // 渲染器与场景
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color("#111318");
+
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 2;
+
+  // 灯光
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 1.2));
+  const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+  keyLight.position.set(3, 5, 4);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.set(2048, 2048);
+  keyLight.shadow.bias = -0.0005;
+  scene.add(keyLight);
+  scene.add(keyLight.target);
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  fillLight.position.set(-4, 2, -3);
+  scene.add(fillLight);
+
+  // 环境贴图（IBL）：程序生成室内环境，无需下载 HDR
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environment = envTexture;
+  pmrem.dispose();
+
+  // 地面（只承接阴影）与网格地面
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.ShadowMaterial({ opacity: 0.35 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  let grid = null;
+  function rebuildGrid(maxDim) {
+    if (grid) {
+      scene.remove(grid);
+      grid.geometry.dispose();
+      grid.material.dispose();
+    }
+    grid = new THREE.GridHelper(maxDim * 4, 20, 0x3b465c, 0x232a3a);
+    grid.visible = bgSelect.value === "grid";
+    scene.add(grid);
+  }
+
+  // 自动旋转：交互时暂停，停止操作 2 秒后恢复
+  let rotateTimer = null;
+  controls.addEventListener("start", () => {
+    clearTimeout(rotateTimer);
+    controls.autoRotate = false;
+    flight = null; // 用户接管时取消飞行
+  });
+  controls.addEventListener("end", () => {
+    rotateTimer = setTimeout(() => { controls.autoRotate = true; }, 2000);
+  });
+
+  // 相机飞行动画：预设视角、双击重置、切换模型时平滑过渡
+  let homePosition = new THREE.Vector3();
+  let homeTarget = new THREE.Vector3();
+  let homeDistance = 1;
+  let flight = null;
+
+  function flyTo(pos, tgt, duration = 600) {
+    clearTimeout(rotateTimer);
+    controls.autoRotate = false;
+    flight = {
+      start: performance.now(), duration,
+      fromPos: camera.position.clone(), toPos: pos.clone(),
+      fromTgt: controls.target.clone(), toTgt: tgt.clone()
+    };
+  }
+
+  function updateFlight() {
+    if (!flight) return;
+    const t = Math.min((performance.now() - flight.start) / flight.duration, 1);
+    const k = t * t * (3 - 2 * t); // smoothstep 缓动
+    camera.position.lerpVectors(flight.fromPos, flight.toPos, k);
+    controls.target.lerpVectors(flight.fromTgt, flight.toTgt, k);
+    if (t >= 1) {
+      flight = null;
+      rotateTimer = setTimeout(() => { controls.autoRotate = true; }, 2000);
+    }
+  }
+
+  function viewPosition(kind) {
+    const d = homeDistance, y = homeTarget.y;
+    switch (kind) {
+      case "front": return new THREE.Vector3(0, y, d * 1.1);
+      case "side": return new THREE.Vector3(d * 1.1, y, 0);
+      case "top": return new THREE.Vector3(0, y + d * 1.2, 0.001);
+      default: return homePosition.clone();
+    }
+  }
+  viewButtons.forEach((btn) => {
+    btn.addEventListener("click", () => flyTo(viewPosition(btn.dataset.view), homeTarget));
+  });
+
+  // 双击重置视角
+  renderer.domElement.addEventListener("dblclick", () => flyTo(homePosition, homeTarget));
+
+  // 尺寸自适应
+  function resize() {
+    const { clientWidth: w, clientHeight: h } = stage;
+    if (w === 0 || h === 0) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(stage);
+  resize();
+
+  // 模型加载
+  const loader = new GLTFLoader();
+  let currentModel = null;
+  let loadToken = 0;
+  let hasFramed = false;
+  let lastFileSize = 0;
+  let bboxHelper = null;
+  let axesHelper = null;
+
+  function disposeHelper(helper) {
+    scene.remove(helper);
+    helper.geometry.dispose();
+    helper.material.dispose();
+  }
+
+  bboxToggle.addEventListener("change", () => { if (bboxHelper) bboxHelper.visible = bboxToggle.checked; });
+  axesToggle.addEventListener("change", () => { if (axesHelper) axesHelper.visible = axesToggle.checked; });
+
+  function frameModel(model, instant = false) {
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+
+    model.position.sub(center);
+    model.position.y += size.y / 2; // 模型底部落到地面 y=0
+    model.traverse((obj) => {
+      if (obj.isMesh) { obj.castShadow = true; obj.receiveShadow = true; }
+    });
+    scene.add(model);
+
+    const distance = (maxDim / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)))) * 1.6;
+    homeDistance = distance;
+    homeTarget.set(0, size.y / 2, 0);
+    homePosition.set(distance * 0.6, size.y / 2 + distance * 0.35, distance);
+    if (instant) {
+      camera.position.copy(homePosition);
+      controls.target.copy(homeTarget);
+      controls.update();
+    }
+    camera.near = distance / 100;
+    camera.far = distance * 100;
+    camera.updateProjectionMatrix();
+
+    // 包围盒 / 坐标轴辅助线随模型重建
+    if (bboxHelper) disposeHelper(bboxHelper);
+    bboxHelper = new THREE.BoxHelper(model, 0x60a5fa);
+    bboxHelper.visible = bboxToggle.checked;
+    scene.add(bboxHelper);
+    if (axesHelper) disposeHelper(axesHelper);
+    axesHelper = new THREE.AxesHelper(maxDim * 0.8);
+    axesHelper.visible = axesToggle.checked;
+    scene.add(axesHelper);
+
+    // 地面、网格、阴影相机随模型尺寸适配
+    ground.scale.setScalar(maxDim * 10);
+    rebuildGrid(maxDim);
+    keyLight.position.set(distance * 0.8, distance * 1.2, distance * 0.6);
+    keyLight.target.position.copy(homeTarget);
+    const sc = keyLight.shadow.camera;
+    sc.left = sc.bottom = -maxDim * 1.5;
+    sc.right = sc.top = maxDim * 1.5;
+    sc.near = 0.1;
+    sc.far = distance * 5;
+    sc.updateProjectionMatrix();
+  }
+
+  function disposeModel(model) {
+    model.traverse((obj) => {
+      if (obj.userData.originalMaterial) { // 法线模式下先恢复原材质，避免泄漏
+        obj.material = obj.userData.originalMaterial;
+        obj.userData.originalMaterial = null;
+      }
+      if (obj.geometry) obj.geometry.dispose();
+      const materials = obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : [];
+      materials.forEach((m) => {
+        Object.values(m).forEach((v) => { if (v && v.isTexture) v.dispose(); });
+        m.dispose();
+      });
+    });
+  }
+
+  function loadModel(url) {
+    const token = ++loadToken;
+    status.hidden = false;
+    status.classList.remove("error");
+    status.textContent = "模型加载中…";
+    infoPanel.hidden = true;
+    lastFileSize = 0;
+    resetAnimation(); // 清理旧模型的动画，避免引用已释放的模型
+
+    loader.load(
+      url,
+      (gltf) => {
+        if (token !== loadToken) { disposeModel(gltf.scene); return; } // 已切换到其他模型
+        if (currentModel) {
+          scene.remove(currentModel);
+          disposeModel(currentModel);
+        }
+        currentModel = gltf.scene;
+        updateInfo(currentModel);
+        frameModel(currentModel, !hasFramed);
+        if (hasFramed) flyTo(homePosition, homeTarget); // 切换模型时相机平滑过渡
+        hasFramed = true;
+        applyMaterialMode(); // 新模型应用当前线框/法线开关
+        setupAnimation(gltf.animations || []);
+        status.hidden = true;
+      },
+      (event) => { if (event.total) lastFileSize = event.total; },
+      () => {
+        if (token !== loadToken) return;
+        status.classList.add("error");
+        status.textContent = `模型加载失败：${url}`;
+      }
+    );
+  }
+
+  // 模型检查：顶点 / 三角面 / 材质 / 贴图 / 尺寸 / 文件大小统计
+  function formatBytes(n) {
+    if (!n) return "未知";
+    return n >= 1048576 ? `${(n / 1048576).toFixed(2)} MB` : `${(n / 1024).toFixed(1)} KB`;
+  }
+
+  function updateInfo(model) {
+    let vertices = 0, triangles = 0, maxTexW = 0, maxTexH = 0;
+    const materials = new Set(), textures = new Set();
+    model.traverse((obj) => {
+      if (!obj.isMesh) return;
+      const pos = obj.geometry.attributes.position;
+      if (pos) {
+        vertices += pos.count;
+        triangles += (obj.geometry.index ? obj.geometry.index.count : pos.count) / 3;
+      }
+      (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => {
+        materials.add(m.uuid);
+        Object.values(m).forEach((v) => {
+          if (v && v.isTexture && !textures.has(v.uuid)) {
+            textures.add(v.uuid);
+            if (v.image && v.image.width) {
+              maxTexW = Math.max(maxTexW, v.image.width);
+              maxTexH = Math.max(maxTexH, v.image.height);
+            }
+          }
+        });
+      });
+    });
+    const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+    infoPanel.innerHTML = `
+      <div>顶点 ${vertices.toLocaleString()} · 三角面 ${Math.round(triangles).toLocaleString()}</div>
+      <div>材质 ${materials.size} · 贴图 ${textures.size}${maxTexW ? `（最大 ${maxTexW}×${maxTexH}）` : ""}</div>
+      <div>尺寸 ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}</div>
+      <div>文件 ${formatBytes(lastFileSize)}</div>`;
+    infoPanel.hidden = false;
+  }
+
+  // GLB 内置动画：播放 / 暂停、clip 选择、进度拖动
+  let mixer = null;
+  let clips = [];
+  let activeAction = null;
+  let animPlaying = true;
+  let scrubbing = false;
+
+  function resetAnimation() {
+    if (mixer) mixer.stopAllAction();
+    mixer = null;
+    clips = [];
+    activeAction = null;
+    animBar.hidden = true;
+  }
+
+  function selectClip(index) {
+    if (!mixer) return;
+    if (activeAction) activeAction.stop();
+    activeAction = mixer.clipAction(clips[index]);
+    activeAction.play();
+    activeAction.paused = !animPlaying;
+  }
+
+  function setupAnimation(animations) {
+    clips = animations;
+    clipSelect.innerHTML = "";
+    if (!clips.length) { animBar.hidden = true; return; }
+    clips.forEach((clip, i) => {
+      const option = document.createElement("option");
+      option.value = i;
+      option.textContent = clip.name || `动画 ${i + 1}`;
+      clipSelect.appendChild(option);
+    });
+    clipSelect.style.display = clips.length > 1 ? "" : "none";
+    mixer = new THREE.AnimationMixer(currentModel);
+    animPlaying = true;
+    animPlay.textContent = "暂停";
+    selectClip(0);
+    animBar.hidden = false;
+  }
+
+  animPlay.addEventListener("click", () => {
+    if (!activeAction) return;
+    animPlaying = !animPlaying;
+    activeAction.paused = !animPlaying;
+    animPlay.textContent = animPlaying ? "暂停" : "播放";
+  });
+  clipSelect.addEventListener("change", () => selectClip(Number(clipSelect.value)));
+  animProgress.addEventListener("pointerdown", () => { scrubbing = true; });
+  window.addEventListener("pointerup", () => { scrubbing = false; });
+  animProgress.addEventListener("input", () => {
+    if (!activeAction) return;
+    activeAction.time = (animProgress.value / 1000) * activeAction.getClip().duration;
+  });
+
+  function updateAnimUI() {
+    if (!activeAction) return;
+    const duration = activeAction.getClip().duration;
+    const t = activeAction.time % duration; // 循环播放时折回
+    if (!scrubbing) animProgress.value = Math.round((t / duration) * 1000);
+    animTime.textContent = `${t.toFixed(1)} / ${duration.toFixed(1)} s`;
+  }
+
+  // 视觉增强：线框 / 法线模式
+  const normalMaterial = new THREE.MeshNormalMaterial();
+  function applyMaterialMode() {
+    if (!currentModel) return;
+    currentModel.traverse((obj) => {
+      if (!obj.isMesh) return;
+      if (normalToggle.checked) {
+        if (!obj.userData.originalMaterial) obj.userData.originalMaterial = obj.material;
+        obj.material = normalMaterial;
+      } else {
+        if (obj.userData.originalMaterial) {
+          obj.material = obj.userData.originalMaterial;
+          obj.userData.originalMaterial = null;
+        }
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        mats.forEach((m) => { m.wireframe = wireToggle.checked; });
+      }
+    });
+  }
+  wireToggle.addEventListener("change", applyMaterialMode);
+  normalToggle.addEventListener("change", applyMaterialMode);
+
+  // 视觉增强：环境反射开关
+  envToggle.addEventListener("change", () => {
+    scene.environment = envToggle.checked ? envTexture : null;
+  });
+
+  // 视觉增强：阴影开关（切换后需刷新材质着色器）
+  shadowToggle.addEventListener("change", () => {
+    renderer.shadowMap.enabled = shadowToggle.checked;
+    ground.visible = shadowToggle.checked;
+    scene.traverse((obj) => {
+      [obj.material, obj.userData.originalMaterial].forEach((mat) => {
+        if (!mat) return;
+        (Array.isArray(mat) ? mat : [mat]).forEach((m) => { m.needsUpdate = true; });
+      });
+    });
+  });
+
+  // 视觉增强：背景切换
+  const bgModes = {
+    dark: { color: "#111318", css: "#111318" },
+    light: { color: "#e8eaf0", css: "#e8eaf0" },
+    gradient: { color: null, css: "linear-gradient(160deg, #2b3a55 0%, #111318 70%)" },
+    grid: { color: "#111318", css: "#111318" },
+    transparent: { color: null, css: "repeating-conic-gradient(#2a2f3d 0% 25%, #1a1d27 0% 50%) 50% / 24px 24px" }
+  };
+  function applyBackground() {
+    const mode = bgModes[bgSelect.value];
+    scene.background = mode.color ? new THREE.Color(mode.color) : null;
+    stage.style.background = mode.css;
+    if (grid) grid.visible = bgSelect.value === "grid";
+  }
+  bgSelect.addEventListener("change", applyBackground);
+
+  // 切换 218 / 219
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = button.dataset.target;
+      const asset = assets[id];
+
+      image.src = asset.image;
+      image.alt = `${id} 原图`;
+      imageName.textContent = asset.image;
+      downloadLink.href = asset.model;
+      downloadLink.textContent = `下载 ${asset.model}`;
+      loadModel(asset.model);
+
+      buttons.forEach((item) => {
+        const isActive = item === button;
+        item.classList.toggle("active", isActive);
+        item.setAttribute("aria-pressed", String(isActive));
+      });
+    });
+  });
+
+  loadModel(assets[218].model);
+
+  // 渲染循环
+  const clock = new THREE.Clock();
+  renderer.setAnimationLoop(() => {
+    const delta = clock.getDelta();
+    updateFlight();
+    if (mixer) mixer.update(delta);
+    if (bboxHelper && bboxHelper.visible) bboxHelper.update(); // 动画时包围盒跟随
+    controls.update();
+    renderer.render(scene, camera);
+    updateAnimUI();
+  });
+</script>
+
+</body>
+</html>
